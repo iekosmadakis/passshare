@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ['@vercel/kv'],
+  devIndicators: false,
   async headers() {
     return [
       {
