@@ -13,6 +13,9 @@ export async function GET(
     // Await params to get the actual values
     const { id } = await params;
     
+    // Decode the secret ID from URL encoding
+    const decodedId = decodeURIComponent(id);
+    
     // Get client IP for rate limiting
     const clientIP = getClientIP(request);
     
@@ -37,7 +40,7 @@ export async function GET(
     }
 
     // Validate secret ID format
-    const secretId = secretIdSchema.parse(id);
+    const secretId = secretIdSchema.parse(decodedId);
 
     // Atomically retrieve and delete the secret
     const secretData = await retrieveAndDeleteSecret(secretId);
