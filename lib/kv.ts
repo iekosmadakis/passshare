@@ -42,15 +42,12 @@ export async function retrieveAndDeleteSecret(secretId: string): Promise<StoredS
   const key = `secret:${secretId}`;
   
   try {
-    // Get the secret data first
-    const secretData = await kv.get(key) as string | null;
+    // Use GETDEL for atomic get-and-delete operation
+    const secretData = await kv.getdel(key) as string | null;
     
     if (!secretData) {
       return null;
     }
-    
-    // Delete the secret immediately to ensure one-time access
-    await kv.del(key);
     
     return JSON.parse(secretData) as StoredSecret;
   } catch (error) {
