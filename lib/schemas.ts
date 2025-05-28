@@ -24,10 +24,7 @@ export const shareSecretSchema = z.object({
 });
 
 // Schema for secret ID validation
-export const secretIdSchema = z.string().regex(
-  /^[A-Za-z0-9_-]{21}$/,
-  "Invalid secret ID format"
-);
+export const secretIdSchema = z.string().length(21);
 
 // Type exports
 export type ShareSecretRequest = z.infer<typeof shareSecretSchema>;
