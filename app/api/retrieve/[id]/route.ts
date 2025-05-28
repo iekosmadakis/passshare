@@ -7,11 +7,11 @@ export const runtime = 'edge';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Await params to get the actual values
-    const { id } = params;
+    const { id } = await params;
     
     // Decode the secret ID from URL encoding
     const decodedId = decodeURIComponent(id);
