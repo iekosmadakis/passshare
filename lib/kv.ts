@@ -42,13 +42,8 @@ export async function retrieveAndDeleteSecret(secretId: string): Promise<StoredS
   const key = `secret:${secretId}`;
   
   try {
-    // Use pipeline for atomic operation
-    const pipeline = kv.pipeline();
-    pipeline.get(key);
-    pipeline.del(key);
-    
-    const results = await pipeline.exec();
-    const secretData = results[0] as string | null;
+    // Use GETDEL for atomic get-and-delete operation
+    const secretData = await kv.getdel(key) as string | null;
     
     if (!secretData) {
       return null;
@@ -62,8 +57,6 @@ export async function retrieveAndDeleteSecret(secretId: string): Promise<StoredS
     return null;
   }
 }
-
-
 
 /**
  * Rate limiting helper
