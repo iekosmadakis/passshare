@@ -54,7 +54,6 @@ export function PasswordRetrievalView({ secretId, encryptionKey }: PasswordRetri
       
       setPassword(decryptedPassword)
       setHasRetrieved(true)
-      setIsRevealed(true)
       
       toast({
         title: "Success!",

@@ -22,28 +22,15 @@ export async function storeSecret(encryptedData: string): Promise<string> {
   const secretId = nanoid(21); // Generate cryptographically secure ID
   const key = `secret:${secretId}`;
   
-  console.log('DEBUG STORE: Generated secret ID:', JSON.stringify(secretId));
-  console.log('DEBUG STORE: Generated key:', JSON.stringify(key));
-  console.log('DEBUG STORE: Secret ID length:', secretId.length);
-  
   const secretData: StoredSecret = {
     encryptedData,
     createdAt: Date.now(),
   };
   
-  console.log('DEBUG STORE: About to store secret');
-  console.log('DEBUG STORE: Secret data keys:', Object.keys(secretData));
+  // Store with TTL (expires after 24 hours)
+  await kv.setex(key, SECRET_TTL, JSON.stringify(secretData));
   
-  try {
-    // Store with TTL (expires after 24 hours)
-    await kv.setex(key, SECRET_TTL, JSON.stringify(secretData));
-    console.log('DEBUG STORE: Secret stored successfully');
-    
-    return secretId;
-  } catch (error) {
-    console.error('DEBUG STORE: Error storing secret:', error);
-    throw error;
-  }
+  return secretId;
 }
 
 /**
@@ -54,41 +41,24 @@ export async function storeSecret(encryptedData: string): Promise<string> {
 export async function retrieveAndDeleteSecret(secretId: string): Promise<StoredSecret | null> {
   const key = `secret:${secretId}`;
   
-  console.log('DEBUG KV: Looking for key:', JSON.stringify(key));
-  console.log('DEBUG KV: Secret ID received:', JSON.stringify(secretId));
-  
   try {
     // Use GETDEL for atomic get-and-delete operation
-    console.log('DEBUG KV: About to call kv.getdel');
     const secretData = await kv.getdel(key);
-    console.log('DEBUG KV: Raw result from kv.getdel:', secretData ? 'DATA_FOUND' : 'NULL');
-    console.log('DEBUG KV: Raw result type:', typeof secretData);
     
     if (!secretData) {
-      console.log('DEBUG KV: No data found, returning null');
       return null;
     }
     
     // Check if data is already parsed (object) or needs parsing (string)
     let parsed: StoredSecret;
     if (typeof secretData === 'string') {
-      console.log('DEBUG KV: Data is string, parsing JSON');
       parsed = JSON.parse(secretData) as StoredSecret;
     } else {
-      console.log('DEBUG KV: Data is already parsed object');
       parsed = secretData as StoredSecret;
     }
     
-    console.log('DEBUG KV: Final parsed data keys:', Object.keys(parsed));
-    
     return parsed;
   } catch (error) {
-    console.error('DEBUG KV: Error in retrieveAndDeleteSecret:', error);
-    console.error('DEBUG KV: Error type:', error instanceof Error ? error.constructor.name : typeof error);
-    if (error instanceof Error) {
-      console.error('DEBUG KV: Error message:', error.message);
-    }
-    
     if (process.env.NODE_ENV === 'development') {
       console.error('Error retrieving secret:', error);
     }
