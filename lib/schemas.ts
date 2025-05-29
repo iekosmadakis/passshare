@@ -4,20 +4,6 @@
 
 import { z } from 'zod';
 
-// Schema for password generation options
-export const passwordOptionsSchema = z.object({
-  length: z.number().min(8).max(128),
-  includeUppercase: z.boolean(),
-  includeLowercase: z.boolean(),
-  includeNumbers: z.boolean(),
-  includeSymbols: z.boolean(),
-}).refine(
-  (data) => data.includeUppercase || data.includeLowercase || data.includeNumbers || data.includeSymbols,
-  {
-    message: "At least one character type must be selected",
-  }
-);
-
 // Schema for sharing a secret
 export const shareSecretSchema = z.object({
   encryptedData: z.string().min(1, "Encrypted data is required"),
