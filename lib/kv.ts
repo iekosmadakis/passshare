@@ -60,24 +60,26 @@ export async function retrieveAndDeleteSecret(secretId: string): Promise<StoredS
   try {
     // Use GETDEL for atomic get-and-delete operation
     console.log('DEBUG KV: About to call kv.getdel');
-    const secretData = await kv.getdel(key) as string | null;
+    const secretData = await kv.getdel(key);
     console.log('DEBUG KV: Raw result from kv.getdel:', secretData ? 'DATA_FOUND' : 'NULL');
     console.log('DEBUG KV: Raw result type:', typeof secretData);
-    
-    if (secretData) {
-      console.log('DEBUG KV: Raw data length:', secretData.length);
-      console.log('DEBUG KV: Raw data preview:', secretData.substring(0, 100) + '...');
-    }
     
     if (!secretData) {
       console.log('DEBUG KV: No data found, returning null');
       return null;
     }
     
-    console.log('DEBUG KV: About to parse JSON');
-    const parsed = JSON.parse(secretData) as StoredSecret;
-    console.log('DEBUG KV: JSON parsed successfully');
-    console.log('DEBUG KV: Parsed data keys:', Object.keys(parsed));
+    // Check if data is already parsed (object) or needs parsing (string)
+    let parsed: StoredSecret;
+    if (typeof secretData === 'string') {
+      console.log('DEBUG KV: Data is string, parsing JSON');
+      parsed = JSON.parse(secretData) as StoredSecret;
+    } else {
+      console.log('DEBUG KV: Data is already parsed object');
+      parsed = secretData as StoredSecret;
+    }
+    
+    console.log('DEBUG KV: Final parsed data keys:', Object.keys(parsed));
     
     return parsed;
   } catch (error) {
