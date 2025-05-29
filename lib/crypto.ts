@@ -125,4 +125,4 @@ export function separateIvAndCiphertext(combined: ArrayBuffer): {
   const iv = combinedArray.slice(0, 12); // First 12 bytes are IV
   const ciphertext = combinedArray.slice(12); // Rest is ciphertext
   return { iv, ciphertext: ciphertext.buffer };
-} 
+}

@@ -224,4 +224,4 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
       </CardContent>
     </Card>
   )
-} 
+}
