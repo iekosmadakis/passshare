@@ -147,7 +147,20 @@ export default function HomePage() {
         {/* Footer */}
         <footer className="mt-16 text-center text-sm text-muted-foreground">
           <p>
-            Built with security in mind. Your passwords are encrypted client-side and never stored in plain text.
+            Built with security in mind. Your passwords are encrypted client-side and never stored in plain text.{' '}
+            Want to see how it works? Review the full source code{' '}
+            <a 
+              href="https://github.com/iekosmadakis/passshare" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              here
+            </a>
+            .
+          </p>
+          <p className="mt-2">
+            Copyright (c) 2025 Ioannis E. Kosmadakis
           </p>
         </footer>
       </div>
