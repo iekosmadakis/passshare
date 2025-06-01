@@ -45,24 +45,6 @@ PassShare implements a **zero-knowledge security model** where the server never 
 - **Progressive Enhancement**: Works without JavaScript for basic functionality
 - **Toast Notifications**: Real-time feedback for all user actions
 
-## 🛡️ Security Guarantees
-
-- **No Plaintext Storage**: Passwords never stored in plain text anywhere
-- **Forward Secrecy**: Each share uses unique encryption keys
-- **Tamper Detection**: AES-GCM provides authenticated encryption
-- **Secure Deletion**: Cryptographic erasure through key destruction
-- **Audit Trail**: Comprehensive logging for security monitoring
-- **HTTPS Enforcement**: All traffic encrypted in transit
-
-## 🏗️ Technical Stack
-
-- **Frontend**: Next.js 15 with React 18 and TypeScript
-- **Styling**: Tailwind CSS with shadcn/ui components
-- **Encryption**: Web Crypto API with AES-256-GCM
-- **Database**: Vercel KV (Redis) with automatic TTL
-- **Runtime**: Vercel Edge Runtime for global performance
-- **Deployment**: Optimized for Vercel with automatic scaling
-
 ## 🔧 Environment Variables
 
 Required for production deployment:
