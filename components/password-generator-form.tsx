@@ -30,6 +30,20 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
     return password ? calculatePasswordStrength(password) : null
   }, [password])
 
+  // Analyze password and update options to match actual content
+  const updateOptionsFromPassword = React.useCallback((pwd: string) => {
+    if (!pwd) return
+    
+    setOptions(prev => ({
+      ...prev,
+      length: pwd.length,
+      includeUppercase: /[A-Z]/.test(pwd),
+      includeLowercase: /[a-z]/.test(pwd),
+      includeNumbers: /[0-9]/.test(pwd),
+      includeSymbols: /[^a-zA-Z0-9]/.test(pwd)
+    }))
+  }, [])
+
   const generatePassword = React.useCallback(() => {
     setIsGenerating(true)
     try {
@@ -45,6 +59,12 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
       setIsGenerating(false)
     }
   }, [options, toast])
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPassword = e.target.value
+    setPassword(newPassword)
+    updateOptionsFromPassword(newPassword)
+  }
 
   const handleCopyPassword = async () => {
     if (!password) return
@@ -89,9 +109,9 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
           <div className="flex gap-2">
             <Input
               value={password}
-              readOnly
               className="font-mono text-sm"
-              placeholder="Click generate to create a password"
+              placeholder="Generate a password or type your own"
+              onChange={handlePasswordChange}
             />
             <Button
               variant="outline"
