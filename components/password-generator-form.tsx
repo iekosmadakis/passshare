@@ -149,14 +149,14 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
               </div>
               <div className="w-full bg-secondary rounded-full h-2">
                 <div
-                  className={`h-2 rounded-full transition-all duration-300 ${
+                  className={`h-2 rounded-full transition-all duration-300 progress-bar ${
                     strength.score === 0 ? 'bg-red-500' :
                     strength.score === 1 ? 'bg-red-500' :
                     strength.score === 2 ? 'bg-orange-500' :
                     strength.score === 3 ? 'bg-yellow-500' :
                     'bg-green-500'
                   }`}
-                  style={{ width: `${(strength.score / 4) * 100}%` }}
+                  style={{ '--progress-width': `${(strength.score / 4) * 100}%` } as React.CSSProperties}
                 />
               </div>
               <div className="text-xs text-muted-foreground">
