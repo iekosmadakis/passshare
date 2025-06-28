@@ -24,6 +24,7 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
   const [options, setOptions] = React.useState<PasswordOptions>(DEFAULT_PASSWORD_OPTIONS)
   const [password, setPassword] = React.useState<string>("")
   const [isGenerating, setIsGenerating] = React.useState(false)
+  const [isManuallyEditing, setIsManuallyEditing] = React.useState(false)
   const { toast } = useToast()
 
   const strength = React.useMemo(() => {
@@ -46,6 +47,7 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
 
   const generatePassword = React.useCallback(() => {
     setIsGenerating(true)
+    setIsManuallyEditing(false)
     try {
       const newPassword = generateSecurePassword(options)
       setPassword(newPassword)
@@ -62,6 +64,7 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPassword = e.target.value
+    setIsManuallyEditing(true)
     setPassword(newPassword)
     updateOptionsFromPassword(newPassword)
   }
@@ -91,8 +94,10 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
 
   // Generate initial password
   React.useEffect(() => {
-    generatePassword()
-  }, [generatePassword])
+    if (!isManuallyEditing) {
+      generatePassword()
+    }
+  }, [generatePassword, isManuallyEditing])
 
   return (
     <Card className="w-full max-w-2xl">
@@ -173,7 +178,10 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
             </div>
             <Slider
               value={[options.length]}
-              onValueChange={(value) => setOptions(prev => ({ ...prev, length: value[0] }))}
+              onValueChange={(value) => {
+                setIsManuallyEditing(false)
+                setOptions(prev => ({ ...prev, length: value[0] }))
+              }}
               min={8}
               max={64}
               step={1}
@@ -187,9 +195,10 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
               <label className="text-sm">Uppercase (A-Z)</label>
               <Switch
                 checked={options.includeUppercase}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) => {
+                  setIsManuallyEditing(false)
                   setOptions(prev => ({ ...prev, includeUppercase: checked }))
-                }
+                }}
               />
             </div>
             
@@ -197,9 +206,10 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
               <label className="text-sm">Lowercase (a-z)</label>
               <Switch
                 checked={options.includeLowercase}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) => {
+                  setIsManuallyEditing(false)
                   setOptions(prev => ({ ...prev, includeLowercase: checked }))
-                }
+                }}
               />
             </div>
             
@@ -207,9 +217,10 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
               <label className="text-sm">Numbers (0-9)</label>
               <Switch
                 checked={options.includeNumbers}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) => {
+                  setIsManuallyEditing(false)
                   setOptions(prev => ({ ...prev, includeNumbers: checked }))
-                }
+                }}
               />
             </div>
             
@@ -217,9 +228,10 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
               <label className="text-sm">Symbols (!@#$...)</label>
               <Switch
                 checked={options.includeSymbols}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) => {
+                  setIsManuallyEditing(false)
                   setOptions(prev => ({ ...prev, includeSymbols: checked }))
-                }
+                }}
               />
             </div>
           </div>
