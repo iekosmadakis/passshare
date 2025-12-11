@@ -12,8 +12,10 @@ PassShare implements a **zero-knowledge security model** where the server never 
 - **Zero-Knowledge Server**: Encryption keys never leave the client; server only stores encrypted ciphertext
 - **One-Time Access Links**: Each share link is destroyed immediately after a single access attempt
 - **Automatic Expiration**: All links expire after 24 hours using Redis TTL for guaranteed cleanup
-- **Rate Limiting**: Built-in protection against abuse with configurable request limits
-- **Secure Headers**: Comprehensive security headers including CSP, X-Frame-Options, and HSTS
+- **Rate Limiting**: Atomic rate limiting with separate counters per endpoint and IP validation
+- **CSRF Protection**: Origin validation on state-changing requests
+- **Input Validation**: Size limits and format validation on all inputs
+- **Secure Headers**: Comprehensive security headers including CSP, X-Frame-Options, and Referrer-Policy
 - **Edge Runtime**: API routes run on Vercel's Edge Runtime for enhanced performance and security
 
 ### Encryption Process
@@ -28,7 +30,7 @@ PassShare implements a **zero-knowledge security model** where the server never 
 ## 🚀 Features
 
 ### Password Generation
-- **Cryptographically Secure**: Uses `crypto.getRandomValues()` for true randomness
+- **Cryptographically Secure**: Uses `crypto.getRandomValues()` with rejection sampling for unbiased randomness
 - **Customizable Length**: 8-64 character passwords with flexible character sets
 - **Real-Time Strength Analysis**: Visual feedback on password complexity
 - **Copy to Clipboard**: One-click copying with fallback support
@@ -90,6 +92,7 @@ npm run type-check
 - **Man-in-the-Middle**: HTTPS and integrity verification
 - **Replay Attacks**: One-time use and automatic expiration
 - **Brute Force**: Rate limiting and secure key generation
+- **CSRF Attacks**: Origin validation on all state-changing requests
 - **Data Leaks**: No sensitive data stored in logs or databases
 
 ### Threat Model
