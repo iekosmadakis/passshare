@@ -1,31 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storeSecret, checkRateLimit } from '@/lib/kv';
 import { shareSecretSchema } from '@/lib/schemas';
-import { getClientIP } from '@/lib/utils';
+import { getClientIP, validateOrigin } from '@/lib/utils';
 
 export const runtime = 'edge';
 
+const RATE_LIMIT = 10;
+const RATE_WINDOW = 60; // seconds
+
 export async function POST(request: NextRequest) {
   try {
+    // CSRF Protection: Validate Origin header
+    const originError = validateOrigin(request);
+    if (originError) {
+      return NextResponse.json(
+        { error: originError },
+        { status: 403 }
+      );
+    }
+
     // Get client IP for rate limiting
     const clientIP = getClientIP(request);
     
-    // Check rate limit (10 requests per minute)
-    const rateLimit = await checkRateLimit(clientIP, 10, 60);
+    // Check rate limit (10 requests per minute for sharing)
+    const rateLimit = await checkRateLimit(clientIP, 'share', RATE_LIMIT, RATE_WINDOW);
+    
+    const rateLimitHeaders = {
+      'X-RateLimit-Limit': RATE_LIMIT.toString(),
+      'X-RateLimit-Remaining': rateLimit.remaining.toString(),
+      'X-RateLimit-Reset': rateLimit.resetTime.toString(),
+    };
     
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { 
-          error: 'Rate limit exceeded',
+          error: 'Rate limit exceeded. Please try again later.',
           resetTime: rateLimit.resetTime 
         },
         { 
           status: 429,
-          headers: {
-            'X-RateLimit-Limit': '10',
-            'X-RateLimit-Remaining': rateLimit.remaining.toString(),
-            'X-RateLimit-Reset': rateLimit.resetTime.toString(),
-          }
+          headers: rateLimitHeaders
         }
       );
     }
@@ -41,11 +55,7 @@ export async function POST(request: NextRequest) {
       { id: secretId },
       {
         status: 201,
-        headers: {
-          'X-RateLimit-Limit': '10',
-          'X-RateLimit-Remaining': rateLimit.remaining.toString(),
-          'X-RateLimit-Reset': rateLimit.resetTime.toString(),
-        }
+        headers: rateLimitHeaders
       }
     );
   } catch (error) {

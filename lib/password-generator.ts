@@ -23,6 +23,34 @@ const LOWERCASE = 'abcdefghijklmnopqrstuvwxyz';
 const NUMBERS = '0123456789';
 const SYMBOLS = '!@#$%^&*()_+-=[]{}|;:,.<>?';
 
+/**
+ * Generate an unbiased random index using rejection sampling
+ * This eliminates modulo bias that occurs when the range doesn't evenly divide 2^32
+ * 
+ * @param max The exclusive upper bound (0 to max-1)
+ * @returns An unbiased random integer in [0, max)
+ */
+function getUnbiasedRandomIndex(max: number): number {
+  if (max <= 0 || max > 0x100000000) {
+    throw new Error('Invalid range for random index');
+  }
+  
+  // Calculate the largest multiple of max that fits in 32 bits
+  // Any value >= threshold would introduce bias
+  const threshold = 0x100000000 - (0x100000000 % max);
+  
+  let randomValue: number;
+  const randomArray = new Uint32Array(1);
+  
+  // Rejection sampling: discard values that would cause bias
+  do {
+    crypto.getRandomValues(randomArray);
+    randomValue = randomArray[0];
+  } while (randomValue >= threshold);
+  
+  return randomValue % max;
+}
+
 export function generateSecurePassword(options: PasswordOptions): string {
   let charset = '';
   
@@ -35,13 +63,11 @@ export function generateSecurePassword(options: PasswordOptions): string {
     throw new Error('At least one character type must be selected');
   }
   
-  // Generate password using crypto.getRandomValues for cryptographic security
+  // Generate password using unbiased random selection
   const password = new Array(options.length);
-  const randomValues = new Uint32Array(options.length);
-  crypto.getRandomValues(randomValues);
   
   for (let i = 0; i < options.length; i++) {
-    password[i] = charset[randomValues[i] % charset.length];
+    password[i] = charset[getUnbiasedRandomIndex(charset.length)];
   }
   
   // Ensure at least one character from each selected type is included
@@ -49,32 +75,28 @@ export function generateSecurePassword(options: PasswordOptions): string {
   let position = 0;
   
   if (options.includeUppercase) {
-    const randomIndex = crypto.getRandomValues(new Uint32Array(1))[0] % UPPERCASE.length;
-    passwordArray[position] = UPPERCASE[randomIndex];
+    passwordArray[position] = UPPERCASE[getUnbiasedRandomIndex(UPPERCASE.length)];
     position++;
   }
   
   if (options.includeLowercase) {
-    const randomIndex = crypto.getRandomValues(new Uint32Array(1))[0] % LOWERCASE.length;
-    passwordArray[position] = LOWERCASE[randomIndex];
+    passwordArray[position] = LOWERCASE[getUnbiasedRandomIndex(LOWERCASE.length)];
     position++;
   }
   
   if (options.includeNumbers) {
-    const randomIndex = crypto.getRandomValues(new Uint32Array(1))[0] % NUMBERS.length;
-    passwordArray[position] = NUMBERS[randomIndex];
+    passwordArray[position] = NUMBERS[getUnbiasedRandomIndex(NUMBERS.length)];
     position++;
   }
   
   if (options.includeSymbols) {
-    const randomIndex = crypto.getRandomValues(new Uint32Array(1))[0] % SYMBOLS.length;
-    passwordArray[position] = SYMBOLS[randomIndex];
+    passwordArray[position] = SYMBOLS[getUnbiasedRandomIndex(SYMBOLS.length)];
     position++;
   }
   
-  // Shuffle the array to randomize positions
+  // Fisher-Yates shuffle using unbiased random selection
   for (let i = passwordArray.length - 1; i > 0; i--) {
-    const randomIndex = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
+    const randomIndex = getUnbiasedRandomIndex(i + 1);
     [passwordArray[i], passwordArray[randomIndex]] = [passwordArray[randomIndex], passwordArray[i]];
   }
   

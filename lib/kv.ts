@@ -67,61 +67,65 @@ export async function retrieveAndDeleteSecret(secretId: string): Promise<StoredS
 }
 
 /**
- * Rate limiting helper
+ * Rate limiting types for different endpoints
+ */
+export type RateLimitType = 'share' | 'retrieve';
+
+/**
+ * Rate limiting helper using atomic INCR operation
  * @param identifier IP address or user identifier
+ * @param type The type of rate limit (share or retrieve) - uses separate counters
  * @param limit Number of requests allowed
  * @param window Time window in seconds
- * @returns True if request is allowed
+ * @returns Rate limit status
  */
 export async function checkRateLimit(
   identifier: string,
+  type: RateLimitType,
   limit: number = 10,
   window: number = 60
 ): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
-  const key = `rate_limit:${identifier}`;
+  // Use separate keys for different rate limit types to prevent cross-endpoint interference
+  const key = `rate_limit:${type}:${identifier}`;
   const now = Date.now();
-  const windowStart = now - (window * 1000);
   
   try {
-    // Get current count
-    const current = await kv.get(key) as number | null;
+    // Use atomic INCR - this eliminates race conditions
+    // INCR creates the key with value 1 if it doesn't exist
+    const current = await kv.incr(key);
     
-    if (current === null) {
-      // First request in window
-      await kv.setex(key, window, 1);
-      return {
-        allowed: true,
-        remaining: limit - 1,
-        resetTime: now + (window * 1000)
-      };
+    if (current === 1) {
+      // First request - set the expiry window
+      await kv.expire(key, window);
     }
     
-    if (current >= limit) {
+    if (current > limit) {
       // Rate limit exceeded
       const ttl = await kv.ttl(key);
       return {
         allowed: false,
         remaining: 0,
-        resetTime: now + (ttl * 1000)
+        resetTime: now + (Math.max(ttl, 0) * 1000)
       };
     }
     
-    // Increment counter
-    await kv.incr(key);
+    // Get TTL for accurate reset time
+    const ttl = await kv.ttl(key);
     
     return {
       allowed: true,
-      remaining: limit - current - 1,
-      resetTime: now + (window * 1000)
+      remaining: Math.max(0, limit - current),
+      resetTime: now + (Math.max(ttl, window) * 1000)
     };
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
       console.error('Rate limiting error:', error);
     }
-    // Allow request on error to avoid blocking legitimate users
+    // SECURITY: Deny request on error to prevent rate limit bypass
+    // This is safer than allowing requests when the rate limiter fails
     return {
-      allowed: true,
-      remaining: limit - 1,
+      allowed: false,
+      remaining: 0,
       resetTime: now + (window * 1000)
     };
   }

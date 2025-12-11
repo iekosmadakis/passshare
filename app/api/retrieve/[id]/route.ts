@@ -5,6 +5,9 @@ import { getClientIP } from '@/lib/utils';
 
 export const runtime = 'edge';
 
+const RATE_LIMIT = 20;
+const RATE_WINDOW = 60; // seconds
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -13,31 +16,41 @@ export async function GET(
     // Await params to get the actual values
     const { id } = await params;
     
+    // SECURITY: Validate secret ID format BEFORE rate limiting
+    // This prevents invalid requests from consuming rate limit quota
+    const validationResult = secretIdSchema.safeParse(id);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid secret ID format' },
+        { status: 400 }
+      );
+    }
+    const secretId = validationResult.data;
+    
     // Get client IP for rate limiting
     const clientIP = getClientIP(request);
     
     // Check rate limit (20 requests per minute for retrieval)
-    const rateLimit = await checkRateLimit(clientIP, 20, 60);
+    const rateLimit = await checkRateLimit(clientIP, 'retrieve', RATE_LIMIT, RATE_WINDOW);
+    
+    const rateLimitHeaders = {
+      'X-RateLimit-Limit': RATE_LIMIT.toString(),
+      'X-RateLimit-Remaining': rateLimit.remaining.toString(),
+      'X-RateLimit-Reset': rateLimit.resetTime.toString(),
+    };
     
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { 
-          error: 'Rate limit exceeded',
+          error: 'Rate limit exceeded. Please try again later.',
           resetTime: rateLimit.resetTime 
         },
         { 
           status: 429,
-          headers: {
-            'X-RateLimit-Limit': '20',
-            'X-RateLimit-Remaining': rateLimit.remaining.toString(),
-            'X-RateLimit-Reset': rateLimit.resetTime.toString(),
-          }
+          headers: rateLimitHeaders
         }
       );
     }
-
-    // Validate secret ID format
-    const secretId = secretIdSchema.parse(id);
 
     // Atomically retrieve and delete the secret
     const secretData = await retrieveAndDeleteSecret(secretId);
@@ -47,11 +60,7 @@ export async function GET(
         { error: 'Secret not found or already accessed' },
         { 
           status: 404,
-          headers: {
-            'X-RateLimit-Limit': '20',
-            'X-RateLimit-Remaining': rateLimit.remaining.toString(),
-            'X-RateLimit-Reset': rateLimit.resetTime.toString(),
-          }
+          headers: rateLimitHeaders
         }
       );
     }
@@ -63,22 +72,16 @@ export async function GET(
       },
       {
         headers: {
-          'X-RateLimit-Limit': '20',
-          'X-RateLimit-Remaining': rateLimit.remaining.toString(),
-          'X-RateLimit-Reset': rateLimit.resetTime.toString(),
+          ...rateLimitHeaders,
+          // Prevent caching of secrets
+          'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+          'Pragma': 'no-cache',
         }
       }
     );
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
       console.error('Error retrieving secret:', error);
-    }
-    
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json(
-        { error: 'Invalid secret ID format' },
-        { status: 400 }
-      );
     }
 
     return NextResponse.json(

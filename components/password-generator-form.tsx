@@ -8,6 +8,7 @@ import {
   DEFAULT_PASSWORD_OPTIONS,
   type PasswordOptions 
 } from "@/lib/password-generator"
+import { MAX_PLAINTEXT_LENGTH } from "@/lib/schemas"
 import { copyToClipboard } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -89,6 +90,17 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
 
   const handleShare = () => {
     if (!password) return
+    
+    // Validate password length before sharing
+    if (password.length > MAX_PLAINTEXT_LENGTH) {
+      toast({
+        title: "Error",
+        description: `Password exceeds maximum length of ${MAX_PLAINTEXT_LENGTH} characters.`,
+        variant: "destructive",
+      })
+      return
+    }
+    
     onShare(password)
   }
 
@@ -110,13 +122,21 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
       <CardContent className="space-y-6">
         {/* Generated Password Display */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Generated Password</label>
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium">Generated Password</label>
+            {password.length > 0 && (
+              <span className={`text-xs ${password.length > MAX_PLAINTEXT_LENGTH ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {password.length.toLocaleString()}/{MAX_PLAINTEXT_LENGTH.toLocaleString()}
+              </span>
+            )}
+          </div>
           <div className="flex gap-2">
             <Input
               value={password}
-              className="font-mono text-sm"
+              className={`font-mono text-sm ${password.length > MAX_PLAINTEXT_LENGTH ? 'border-destructive' : ''}`}
               placeholder="Generate a password or type your own"
               onChange={handlePasswordChange}
+              maxLength={MAX_PLAINTEXT_LENGTH + 100} // Allow slight overflow for UX, validation happens on submit
             />
             <Button
               variant="outline"
@@ -237,6 +257,16 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
           </div>
         </div>
 
+        {/* Length Warning */}
+        {password.length > MAX_PLAINTEXT_LENGTH && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+            <p className="text-sm text-destructive">
+              Password exceeds maximum length of {MAX_PLAINTEXT_LENGTH.toLocaleString()} characters. 
+              Please shorten it before sharing.
+            </p>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex gap-2 pt-4">
           <Button onClick={generatePassword} disabled={isGenerating} className="flex-1">
@@ -245,7 +275,7 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
           </Button>
           <Button 
             onClick={handleShare} 
-            disabled={!password}
+            disabled={!password || password.length > MAX_PLAINTEXT_LENGTH}
             variant="outline"
             className="flex-1"
           >
