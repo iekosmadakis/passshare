@@ -160,7 +160,7 @@ export default function HomePage() {
             .
           </p>
           <p className="mt-2">
-            Copyright (c) 2025 Ioannis E. Kosmadakis
+            Copyright (c) 2026 Ioannis E. Kosmadakis
           </p>
         </footer>
       </div>

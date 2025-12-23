@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Copy, RefreshCw, Share2 } from "lucide-react"
+import { Copy, Eye, EyeOff, RefreshCw, Share2 } from "lucide-react"
 import { 
   generateSecurePassword, 
   calculatePasswordStrength, 
@@ -26,6 +26,7 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
   const [password, setPassword] = React.useState<string>("")
   const [isGenerating, setIsGenerating] = React.useState(false)
   const [isManuallyEditing, setIsManuallyEditing] = React.useState(false)
+  const [isRevealed, setIsRevealed] = React.useState(false)
   const { toast } = useToast()
 
   const strength = React.useMemo(() => {
@@ -132,12 +133,21 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
           </div>
           <div className="flex gap-2">
             <Input
+              type={isRevealed ? "text" : "password"}
               value={password}
               className={`font-mono text-sm ${password.length > MAX_PLAINTEXT_LENGTH ? 'border-destructive' : ''}`}
               placeholder="Generate a password or type your own"
               onChange={handlePasswordChange}
               maxLength={MAX_PLAINTEXT_LENGTH + 100} // Allow slight overflow for UX, validation happens on submit
             />
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setIsRevealed(!isRevealed)}
+              title={isRevealed ? "Hide password" : "Show password"}
+            >
+              {isRevealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
             <Button
               variant="outline"
               size="icon"

@@ -103,7 +103,7 @@ PassShare is designed for sharing passwords between trusted parties over untrust
 
 MIT License
 
-Copyright (c) 2025 Ioannis E. Kosmadakis
+Copyright (c) 2026 Ioannis E. Kosmadakis
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
