@@ -158,7 +158,7 @@ export function ShareLinkDisplay({ shareUrl, onClose }: ShareLinkDisplayProps) {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-2 pt-4">
+        <div className="flex flex-col sm:flex-row gap-2 pt-4">
           <Button onClick={handleCopyLink} className="flex-1">
             <Copy className="h-4 w-4 mr-2" />
             Copy Link

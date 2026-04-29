@@ -23,9 +23,10 @@ build/
 *.tsbuildinfo
 next-env.d.ts
 
-# IDE
+# Editor directories and files
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 

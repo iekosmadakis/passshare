@@ -200,7 +200,7 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {([
               ['Uppercase (A-Z)', 'includeUppercase'],
               ['Lowercase (a-z)', 'includeLowercase'],
@@ -230,7 +230,7 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
           </div>
         )}
 
-        <div className="flex gap-2 pt-4">
+        <div className="flex flex-col sm:flex-row gap-2 pt-4">
           <Button onClick={generatePassword} disabled={isGenerating} className="flex-1">
             <RefreshCw className={`h-4 w-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`} />
             Generate New
