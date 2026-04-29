@@ -136,8 +136,9 @@ export function ShareLinkDisplay({ shareUrl, onClose }: ShareLinkDisplayProps) {
         {showQR && qrCodeDataUrl && (
           <div className="flex justify-center">
             <div className="p-4 bg-white rounded-lg">
-              <img 
-                src={qrCodeDataUrl} 
+              {/* eslint-disable-next-line @next/next/no-img-element -- QR code is a runtime base64 data URL; next/image is unnecessary */}
+              <img
+                src={qrCodeDataUrl}
                 alt="QR Code for share link"
                 className="w-64 h-64"
               />
