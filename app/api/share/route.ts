@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ZodError } from 'zod';
 import { storeSecret, checkRateLimit } from '@/lib/kv';
 import { shareSecretSchema } from '@/lib/schemas';
 import { getClientIP, validateOrigin } from '@/lib/utils';
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
       console.error('Error storing secret:', error);
     }
 
-    if (error instanceof Error && error.name === 'ZodError') {
+    if (error instanceof ZodError) {
       return NextResponse.json({ error: 'Invalid request data' }, { status: 400 });
     }
 

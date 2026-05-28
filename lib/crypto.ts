@@ -62,9 +62,11 @@ export async function encrypt(plaintext: string, key: CryptoKey): Promise<{
   const data = new TextEncoder().encode(plaintext);
 
   const ciphertext = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
+    // BufferSource cast: Uint8Array is always a valid BufferSource at runtime;
+    // TS 5.9 narrowed BufferSource to exclude SharedArrayBuffer-backed views.
+    { name: 'AES-GCM', iv: iv as BufferSource },
     key,
-    data
+    data as BufferSource
   );
 
   return { ciphertext, iv };
@@ -76,7 +78,7 @@ export async function decrypt(
   key: CryptoKey
 ): Promise<string> {
   const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
+    { name: 'AES-GCM', iv: iv as BufferSource },
     key,
     ciphertext
   );

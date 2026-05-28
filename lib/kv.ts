@@ -55,25 +55,31 @@ export async function checkRateLimit(
 
   try {
     const current = await kv.incr(key);
+    let ttl = await kv.ttl(key);
 
-    if (current === 1) {
+    // Safety net: if EXPIRE never ran (e.g. crash/network drop after first INCR,
+    // or another caller saw current > 1 but the key had no TTL), set it now.
+    // Without this, a key with -1 TTL would rate-limit the user forever.
+    if (ttl === -1) {
       await kv.expire(key, window);
+      ttl = window;
     }
 
+    // ttl of -2 means key doesn't exist (vanished between INCR and TTL) — treat as fresh window.
+    const remainingMs = (ttl > 0 ? ttl : window) * 1000;
+
     if (current > limit) {
-      const ttl = await kv.ttl(key);
       return {
         allowed: false,
         remaining: 0,
-        resetTime: now + (Math.max(ttl, 0) * 1000)
+        resetTime: now + remainingMs,
       };
     }
 
-    const ttl = await kv.ttl(key);
     return {
       allowed: true,
       remaining: Math.max(0, limit - current),
-      resetTime: now + (Math.max(ttl, window) * 1000)
+      resetTime: now + remainingMs,
     };
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {

@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { Copy, ExternalLink, QrCode } from "lucide-react"
-import QRCode from "qrcode"
 import { copyToClipboard, formatTimeRemaining } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,26 +19,30 @@ export function ShareLinkDisplay({ shareUrl, onClose }: ShareLinkDisplayProps) {
   const [showQR, setShowQR] = React.useState(false)
   const { toast } = useToast()
 
-  // Generate QR code
+  // Lazy-load and generate the QR code only after the user reveals it.
+  // Keeps the qrcode library out of the initial bundle (~25 kB minified).
   React.useEffect(() => {
+    if (!showQR) return
+    let cancelled = false
     const generateQR = async () => {
       try {
+        const { default: QRCode } = await import('qrcode')
         const dataUrl = await QRCode.toDataURL(shareUrl, {
           width: 256,
           margin: 2,
-          color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-          }
+          color: { dark: '#000000', light: '#FFFFFF' },
         })
-        setQrCodeDataUrl(dataUrl)
+        if (!cancelled) setQrCodeDataUrl(dataUrl)
       } catch (error) {
-        console.error('Error generating QR code:', error)
+        if (!cancelled && process.env.NODE_ENV === 'development') {
+          console.error('Error generating QR code:', error)
+        }
       }
     }
 
     generateQR()
-  }, [shareUrl])
+    return () => { cancelled = true }
+  }, [shareUrl, showQR])
 
   // Countdown timer
   React.useEffect(() => {

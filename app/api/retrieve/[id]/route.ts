@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { retrieveAndDeleteSecret, checkRateLimit } from '@/lib/kv';
 import { secretIdSchema } from '@/lib/schemas';
-import { getClientIP } from '@/lib/utils';
+import { getClientIP, validateOrigin } from '@/lib/utils';
 
 export const runtime = 'edge';
 
@@ -13,6 +13,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Defense in depth: reject cross-origin GETs so a hostile page can't burn
+    // a victim's secret via <img src=".../api/retrieve/id"> if it learns the id.
+    const originError = validateOrigin(request);
+    if (originError) {
+      return NextResponse.json({ error: originError }, { status: 403 });
+    }
+
     const { id } = await params;
 
     // Validate ID format before rate limiting to avoid wasting quota

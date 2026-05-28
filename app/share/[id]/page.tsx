@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useParams } from "next/navigation"
 import { AlertTriangle } from "lucide-react"
+import { base64UrlDecode } from "@/lib/crypto"
 import { PasswordRetrievalView } from "@/components/password-retrieval-view"
 import { PageShell } from "@/components/page-shell"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -61,8 +62,8 @@ export default function SharePage() {
     }
 
     try {
-      const decoded = atob(hash.replace(/-/g, '+').replace(/_/g, '/'))
-      if (decoded.length !== 32) {
+      const keyBuffer = base64UrlDecode(hash)
+      if (keyBuffer.byteLength !== 32) {
         throw new Error("Invalid key length")
       }
       setEncryptionKey(hash)
