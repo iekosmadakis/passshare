@@ -17,10 +17,21 @@ export function formatTimeRemaining(seconds: number): string {
   return `${remainingSeconds}s`;
 }
 
-export async function copyToClipboard(text: string): Promise<boolean> {
+/**
+ * Copy text to the clipboard. When `clearAfterMs` is set (used for plaintext
+ * secrets), best-effort clear the live clipboard afterwards to shrink the
+ * window during which the secret sits in the OS / cloud-synced clipboard.
+ * The clear only overwrites if the clipboard still holds our value, and any
+ * permission error is swallowed — it cannot remove entries already captured
+ * by OS clipboard history (Win+V), so callers must not rely on it.
+ */
+export async function copyToClipboard(text: string, clearAfterMs?: number): Promise<boolean> {
   try {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text);
+      if (clearAfterMs && clearAfterMs > 0) {
+        scheduleClipboardClear(text, clearAfterMs);
+      }
       return true;
     }
 
@@ -42,10 +53,26 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
+function scheduleClipboardClear(value: string, delayMs: number): void {
+  setTimeout(async () => {
+    try {
+      const current = await navigator.clipboard.readText();
+      if (current === value) {
+        await navigator.clipboard.writeText('');
+      }
+    } catch {
+      // Reading the clipboard may be denied without a user gesture — that's fine,
+      // we simply skip clearing rather than wiping unrelated clipboard content.
+    }
+  }, delayMs);
+}
+
 /**
- * Extract client IP from request headers in order of trust:
+ * Extract a rate-limit bucket identifier from request headers in order of trust:
  * x-vercel-forwarded-for > x-real-ip > cf-connecting-ip > x-forwarded-for
- * Falls back to a fingerprint hash if no valid IP is found.
+ * IPv6 sources are collapsed to their /64 prefix so a single allocation (a host
+ * is routinely handed a whole /64) cannot rotate through 2^64 addresses to defeat
+ * per-IP limits. IPv4 keeps full precision. Falls back to a fingerprint hash.
  */
 export function getClientIP(request: Request): string {
   const headerPriority = [
@@ -59,7 +86,9 @@ export function getClientIP(request: Request): string {
     const value = request.headers.get(header);
     if (value) {
       const ip = value.split(',')[0].trim();
-      if (isValidIP(ip)) return ip;
+      if (isValidIP(ip)) {
+        return ip.includes(':') ? ipv6Prefix64(ip) : ip;
+      }
     }
   }
 
@@ -67,6 +96,32 @@ export function getClientIP(request: Request): string {
   const userAgent = request.headers.get('user-agent') || '';
   const acceptLang = request.headers.get('accept-language') || '';
   return `unknown:${simpleHash(userAgent + acceptLang)}`;
+}
+
+/**
+ * Reduce an IPv6 address to its /64 network prefix (the first four hextets),
+ * used as the rate-limit bucket key. Expands :: compression and ignores any
+ * zone id or embedded-IPv4 tail (the tail never falls inside the first 64 bits
+ * for routable addresses). Errs toward coarser (stricter) bucketing on oddities.
+ */
+function ipv6Prefix64(ip: string): string {
+  const addr = ip.split('%')[0];
+  let head = addr;
+  let tail = '';
+  if (addr.includes('::')) {
+    const parts = addr.split('::');
+    head = parts[0];
+    tail = parts[1] ?? '';
+  }
+  const headGroups = head ? head.split(':').filter(Boolean) : [];
+  const tailGroups = tail ? tail.split(':').filter(Boolean) : [];
+  const missing = Math.max(0, 8 - (headGroups.length + tailGroups.length));
+  const full = [...headGroups, ...Array(missing).fill('0'), ...tailGroups];
+  const prefix = full
+    .slice(0, 4)
+    .map((h) => (parseInt(h || '0', 16) || 0).toString(16))
+    .join(':');
+  return `${prefix}::/64`;
 }
 
 /** Validates IPv4 and IPv6 formats to prevent header injection */
@@ -95,18 +150,32 @@ function simpleHash(str: string): string {
   return Math.abs(hash).toString(36);
 }
 
-/** CSRF protection: validates that the request origin matches the host */
+/**
+ * CSRF protection: validates that the request originates from this deployment.
+ * The expected origin is derived from the (platform-set) host header, optionally
+ * extended by an explicit ALLOWED_ORIGINS allowlist for custom domains. We never
+ * trust a hostname *suffix* (e.g. any "*.vercel.app"), since anyone can deploy
+ * under that eTLD and would otherwise pass the check.
+ */
 export function validateOrigin(request: Request): string | null {
   const origin = request.headers.get('origin');
   const referer = request.headers.get('referer');
-  const requestOrigin = origin || (referer ? new URL(referer).origin : null);
+  let requestOrigin: string | null = null;
+  try {
+    requestOrigin = origin || (referer ? new URL(referer).origin : null);
+  } catch {
+    return 'Invalid origin header';
+  }
 
   if (!requestOrigin) {
+    // No Origin/Referer: rely on the Fetch Metadata signal. A modern browser
+    // always sends Sec-Fetch-Site; same-origin/none is fine, anything else is
+    // cross-site. Header-less clients (no signal at all) fail closed.
     const secFetchSite = request.headers.get('sec-fetch-site');
-    if (secFetchSite && secFetchSite !== 'same-origin' && secFetchSite !== 'none') {
-      return 'Cross-origin requests are not allowed';
+    if (secFetchSite === 'same-origin' || secFetchSite === 'none') {
+      return null;
     }
-    return null;
+    return 'Cross-origin requests are not allowed';
   }
 
   const host = request.headers.get('host');
@@ -116,22 +185,19 @@ export function validateOrigin(request: Request): string | null {
     return 'Unable to verify request origin';
   }
 
-  try {
-    const originUrl = new URL(requestOrigin);
-    const expectedOrigins = [
-      `https://${expectedHost}`,
-      `http://${expectedHost}`,
-    ];
+  const allowed = new Set<string>([
+    `https://${expectedHost}`,
+    `http://${expectedHost}`,
+  ]);
+  for (const extra of (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean)) {
+    allowed.add(extra);
+  }
 
-    if (originUrl.hostname.endsWith('.vercel.app')) {
-      return null;
-    }
-
-    if (!expectedOrigins.includes(requestOrigin)) {
-      return 'Cross-origin requests are not allowed';
-    }
-  } catch {
-    return 'Invalid origin header';
+  if (!allowed.has(requestOrigin)) {
+    return 'Cross-origin requests are not allowed';
   }
 
   return null;

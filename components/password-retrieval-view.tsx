@@ -47,20 +47,33 @@ export function PasswordRetrievalView({ secretId, encryptionKey }: PasswordRetri
       }
 
       const data = await response.json()
-      const cryptoKey = await importKey(encryptionKey)
-      const encryptedBuffer = base64UrlDecode(data.encryptedData)
-      const { iv, ciphertext } = separateIvAndCiphertext(encryptedBuffer)
-      const decryptedPassword = await decrypt(ciphertext, iv, cryptoKey)
-      
+
+      // The secret is GETDEL'd server-side before we reach here, so a decrypt
+      // failure (e.g. a key mangled in transit) means it is already consumed.
+      // WebCrypto rejects with an empty-message DOMException, so give an explicit
+      // message — otherwise the error UI would render blank and look like a no-op.
+      let decryptedPassword: string
+      try {
+        const cryptoKey = await importKey(encryptionKey)
+        const encryptedBuffer = base64UrlDecode(data.encryptedData)
+        const { iv, ciphertext } = separateIvAndCiphertext(encryptedBuffer)
+        decryptedPassword = await decrypt(ciphertext, iv, cryptoKey)
+      } catch {
+        throw new Error(
+          "Decryption failed — the link may be corrupted or the key is incorrect. This one-time secret has now been consumed."
+        )
+      }
+
       setPassword(decryptedPassword)
       setHasRetrieved(true)
-      
+
       toast({
         title: "Success!",
         description: "Password retrieved and decrypted successfully.",
       })
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to retrieve password"
+      const raw = error instanceof Error ? error.message : ""
+      const errorMessage = raw.trim() || "Failed to retrieve password"
       setError(errorMessage)
       toast({
         title: "Error",
@@ -74,8 +87,8 @@ export function PasswordRetrievalView({ secretId, encryptionKey }: PasswordRetri
 
   const handleCopyPassword = async () => {
     if (!password) return
-    
-    const success = await copyToClipboard(password)
+
+    const success = await copyToClipboard(password, 60_000)
     if (success) {
       toast({
         title: "Copied!",
@@ -149,6 +162,12 @@ export function PasswordRetrievalView({ secretId, encryptionKey }: PasswordRetri
             value={password}
             readOnly
             className="font-mono"
+            spellCheck={false}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            data-1p-ignore
+            data-lpignore="true"
           />
           <Button
             variant="outline"

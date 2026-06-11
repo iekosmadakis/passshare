@@ -69,7 +69,7 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
 
   const handleCopyPassword = async () => {
     if (!password) return
-    const success = await copyToClipboard(password)
+    const success = await copyToClipboard(password, 60_000)
     toast({
       title: success ? "Copied!" : "Error",
       description: success ? "Password copied to clipboard." : "Failed to copy password to clipboard.",
@@ -124,6 +124,12 @@ export function PasswordGeneratorForm({ onShare }: PasswordGeneratorFormProps) {
               placeholder="Generate a password or type your own"
               onChange={handlePasswordChange}
               maxLength={MAX_PLAINTEXT_LENGTH + 100}
+              spellCheck={false}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              data-1p-ignore
+              data-lpignore="true"
             />
             <Button
               variant="outline"

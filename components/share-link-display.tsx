@@ -102,6 +102,12 @@ export function ShareLinkDisplay({ shareUrl, onClose }: ShareLinkDisplayProps) {
               value={shareUrl}
               readOnly
               className="font-mono text-sm"
+              spellCheck={false}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              data-1p-ignore
+              data-lpignore="true"
             />
             <Button
               variant="outline"

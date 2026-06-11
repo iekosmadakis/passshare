@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import { headers } from 'next/headers'
 import { Providers } from '@/components/providers'
 import './globals.css'
 
@@ -13,18 +14,22 @@ export const metadata: Metadata = {
   robots: 'index, follow',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // Forwarded by middleware.ts so next-themes' pre-hydration script is nonce'd
+  // and not blocked by the strict-dynamic CSP.
+  const nonce = (await headers()).get('x-nonce') ?? undefined
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <Providers>
+        <Providers nonce={nonce}>
           {children}
         </Providers>
       </body>
     </html>
   )
-} 
+}

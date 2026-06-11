@@ -48,13 +48,27 @@ function LoadingCard() {
   )
 }
 
+const KEY_STORAGE_PREFIX = "passshare-key:"
+
 export default function SharePage() {
   const params = useParams()
+  const secretId = params.id as string
   const [encryptionKey, setEncryptionKey] = React.useState<string>("")
   const [error, setError] = React.useState<string>("")
 
   React.useEffect(() => {
-    const hash = window.location.hash.slice(1)
+    const storageKey = secretId ? KEY_STORAGE_PREFIX + secretId : ""
+    let hash = window.location.hash.slice(1)
+
+    // Recover the key after an accidental reload: sessionStorage is tab-scoped
+    // and never synced to the browser-vendor cloud or written to history.
+    if (!hash && storageKey) {
+      try {
+        hash = sessionStorage.getItem(storageKey) ?? ""
+      } catch {
+        /* sessionStorage unavailable — fall through to the missing-key error */
+      }
+    }
 
     if (!hash) {
       setError("Invalid share link: Missing encryption key")
@@ -66,13 +80,28 @@ export default function SharePage() {
       if (keyBuffer.byteLength !== 32) {
         throw new Error("Invalid key length")
       }
+      if (storageKey) {
+        try {
+          sessionStorage.setItem(storageKey, hash)
+        } catch {
+          /* best-effort persistence; the key still lives in component state */
+        }
+      }
       setEncryptionKey(hash)
+
+      // Strip the key from the address bar/history so the full capability URL is
+      // not recorded in (cloud-synced) browser history while the secret is live.
+      if (window.location.hash) {
+        window.history.replaceState(
+          null,
+          "",
+          window.location.pathname + window.location.search
+        )
+      }
     } catch {
       setError("Invalid share link: Malformed encryption key")
     }
-  }, [])
-
-  const secretId = params.id as string
+  }, [secretId])
 
   const content = (() => {
     if (!secretId) {
