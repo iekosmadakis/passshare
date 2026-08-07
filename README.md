@@ -44,10 +44,14 @@ PassShare implements a **zero-knowledge security model** where the server never 
 ### User Experience
 - **Dark/Light Mode**: System-aware theme switching with manual override
 - **Accessibility**: WCAG compliant with keyboard navigation and screen reader support
-- **Progressive Enhancement**: Works without JavaScript for basic functionality
 - **Toast Notifications**: Real-time feedback for all user actions
 
+> JavaScript is required: encryption and decryption happen entirely in the
+> browser, so the app cannot function without it.
+
 ## 🔧 Environment Variables
+
+See [`.env.example`](.env.example) for the full annotated list.
 
 Required for production deployment:
 
@@ -58,6 +62,17 @@ KV_REST_API_URL=https://...
 KV_REST_API_TOKEN=...
 KV_REST_API_READ_ONLY_TOKEN=...
 ```
+
+Optional:
+
+```env
+# Extra origins accepted by the CSRF check (comma-separated, scheme included).
+# Only needed behind a proxy that rewrites the Host header.
+ALLOWED_ORIGINS=https://passshare.example.com
+```
+
+> The rate limiter **fails closed**: if the KV variables are missing or the store
+> is unreachable, every request is rejected rather than silently unthrottled.
 
 ## 🏗️ Local Development
 

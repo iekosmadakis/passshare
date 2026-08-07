@@ -50,7 +50,8 @@ export async function importKey(keyData: string): Promise<CryptoKey> {
   );
 }
 
-export function generateIV(): Uint8Array {
+/** Fresh 96-bit IV — never reused, generated per encryption. */
+function generateIV(): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(12));
 }
 

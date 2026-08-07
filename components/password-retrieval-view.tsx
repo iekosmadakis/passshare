@@ -34,7 +34,8 @@ export function PasswordRetrievalView({ secretId, encryptionKey }: PasswordRetri
     setError("")
 
     try {
-      const response = await fetch(`/api/retrieve/${secretId}`)
+      // POST because retrieval is destructive — see the route handler comment.
+      const response = await fetch(`/api/retrieve/${secretId}`, { method: 'POST' })
       
       if (!response.ok) {
         if (response.status === 404) {

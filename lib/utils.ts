@@ -150,14 +150,33 @@ function simpleHash(str: string): string {
   return Math.abs(hash).toString(36);
 }
 
+const CROSS_ORIGIN_ERROR = 'Cross-origin requests are not allowed';
+
 /**
- * CSRF protection: validates that the request originates from this deployment.
- * The expected origin is derived from the (platform-set) host header, optionally
- * extended by an explicit ALLOWED_ORIGINS allowlist for custom domains. We never
- * trust a hostname *suffix* (e.g. any "*.vercel.app"), since anyone can deploy
- * under that eTLD and would otherwise pass the check.
+ * CSRF protection.
+ *
+ * Fetch Metadata is the primary gate: `Sec-Fetch-Site` is set by the browser and
+ * is a forbidden header name, so page JavaScript cannot forge it. That is exactly
+ * the threat CSRF is about — a victim's browser being weaponized by another site.
+ * A non-browser client (curl) can of course send anything, but that is not CSRF:
+ * it has no victim and gains nothing it could not do by calling the API directly.
+ *
+ * The Origin/Referer comparison below is only a fallback for pre-Fetch-Metadata
+ * browsers. It deliberately does NOT consult `x-forwarded-host`: that header is
+ * attacker-supplied, and deriving the *expected* origin from it while also
+ * comparing against the attacker-supplied `Origin` makes the check tautological
+ * (send Origin: https://evil.com + X-Forwarded-Host: evil.com and it passes).
+ * Set ALLOWED_ORIGINS when fronting the app with a proxy that rewrites Host.
  */
 export function validateOrigin(request: Request): string | null {
+  const secFetchSite = request.headers.get('sec-fetch-site');
+  if (secFetchSite) {
+    // 'none' = user-initiated (address bar); 'same-origin' = our own page.
+    return secFetchSite === 'same-origin' || secFetchSite === 'none'
+      ? null
+      : CROSS_ORIGIN_ERROR;
+  }
+
   const origin = request.headers.get('origin');
   const referer = request.headers.get('referer');
   let requestOrigin: string | null = null;
@@ -167,28 +186,18 @@ export function validateOrigin(request: Request): string | null {
     return 'Invalid origin header';
   }
 
+  // No Fetch Metadata and no Origin/Referer at all: nothing to verify against.
+  // Fail closed rather than assume same-origin.
   if (!requestOrigin) {
-    // No Origin/Referer: rely on the Fetch Metadata signal. A modern browser
-    // always sends Sec-Fetch-Site; same-origin/none is fine, anything else is
-    // cross-site. Header-less clients (no signal at all) fail closed.
-    const secFetchSite = request.headers.get('sec-fetch-site');
-    if (secFetchSite === 'same-origin' || secFetchSite === 'none') {
-      return null;
-    }
-    return 'Cross-origin requests are not allowed';
+    return CROSS_ORIGIN_ERROR;
   }
 
   const host = request.headers.get('host');
-  const expectedHost = request.headers.get('x-forwarded-host') || host;
-
-  if (!expectedHost) {
+  if (!host) {
     return 'Unable to verify request origin';
   }
 
-  const allowed = new Set<string>([
-    `https://${expectedHost}`,
-    `http://${expectedHost}`,
-  ]);
+  const allowed = new Set<string>([`https://${host}`, `http://${host}`]);
   for (const extra of (process.env.ALLOWED_ORIGINS || '')
     .split(',')
     .map((o) => o.trim())
@@ -196,9 +205,5 @@ export function validateOrigin(request: Request): string | null {
     allowed.add(extra);
   }
 
-  if (!allowed.has(requestOrigin)) {
-    return 'Cross-origin requests are not allowed';
-  }
-
-  return null;
+  return allowed.has(requestOrigin) ? null : CROSS_ORIGIN_ERROR;
 }

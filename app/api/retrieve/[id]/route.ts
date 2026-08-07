@@ -8,13 +8,20 @@ export const runtime = 'edge';
 const RATE_LIMIT = 20;
 const RATE_WINDOW = 60;
 
-export async function GET(
+/**
+ * POST, not GET: retrieval is destructive (atomic GETDEL — the secret is gone
+ * afterwards), so it must not sit behind a safe/idempotent method. As a GET it
+ * could be burned by anything that merely *touches* the URL — link prefetchers,
+ * crawlers, chat/link-preview unfurlers, antivirus and mail URL scanners, or a
+ * cross-origin <img src>. POST is not issued by any of those.
+ */
+export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Defense in depth: reject cross-origin GETs so a hostile page can't burn
-    // a victim's secret via <img src=".../api/retrieve/id"> if it learns the id.
+    // Defense in depth: reject cross-origin calls so a hostile page can't burn
+    // a victim's secret via a form/fetch if it learns the id.
     const originError = validateOrigin(request);
     if (originError) {
       return NextResponse.json({ error: originError }, { status: 403 });
